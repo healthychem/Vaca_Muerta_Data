@@ -1,0 +1,330 @@
+---
+title: "Estadística en Vaca Muerta"
+author: "Pablo Vidal"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    theme: "default"
+    
+---
+
+# Tarea Empresarial
+
+Descubrir que variables correlacionan con la productividad en pozos petroleros horizontales basados en datos históricos y estimar la productividad en un intervalo de tiempo establecido.
+
+# Preparando datos para la exploración
+
+Utilizaremos la librería "tidyverse"
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+```
+
+## Originalidad
+
+Cada compañia exploradora de pertróleo y gas en la cuenca de Vaca Muerta registra sus datos de fractura y producción mensulamente en el servidor de la Secretaría de Energía de la Nación y son datos abiertos de uso público a travez de la dirección web <http://datos.energia.gob.ar/>. Son de primera fuente que representan el 100% de las perforaciones en la cuenca desde sus inicios y pueden descargarse en 2 archivos con formato CSV.
+
+### df_frac: 
+El primer archivo .csv contiene datos de fracturas de pozos gas/petroleo que lo descargamos y transformamos en el dataframe "df_frac".
+
+```{r}
+url_1 <-"http://datos.energia.gob.ar/dataset/71fa2e84-0316-4a1b-af68-7f35e41f58d7/resource/2280ad92-6ed3-403e-a095-50139863ab0d/download/datos-de-fractura-de-pozos-de-hidrocarburos-adjunto-iv-actualizacin-diaria.csv"
+  df_frac <- read.csv(url_1)
+```
+
+### df_prod: 
+El segundo archivo .csv contiene datos de producción de pozos gas/petroleo que lo descargamos y transformamos en el dataframe "df_prod".
+
+```{r}
+url_2 <- "http://datos.energia.gob.ar/dataset/c846e79c-026c-4040-897f-1ad3543b407c/resource/b5b58cdc-9e07-41f9-b392-fb9ec68b0725/download/produccin-de-pozos-de-gas-y-petrleo-no-convencional.csv"
+df_prod <- read.csv(url_2)
+```
+
+## Metadatos
+
+### df_frac
+Vemos como se compone la estructura de df_frac que contiene `r nrow(df_frac)` observaciones y `r ncol(df_frac)` variables. 
+```{r}
+str(df_frac)
+```
+
+### df_prod
+Vemos como se compone la estructura de df_prod que contiene `r nrow(df_prod)` observaciones y `r ncol(df_prod)` variables.
+```{r}
+str(df_prod)
+```
+
+## Preparación
+
+### df_frac_prep
+
+Hay variables cualitativas que son irrevelantes para el análisis y otras que se repiten en el dataframe "df_prod". Quitaremos todas pero dejaremos solo "idpozo" para utilizar como clave primaria en posterior transformación.
+
+```{r  message=FALSE, warning=FALSE}
+
+df_frac_prep <- df_frac %>%
+select(-id_base_fractura_adjiv,-sigla,-cuenca,-empresa_informante,-areapermisoconcesion,-yacimiento,-formacion_productiva,-tipo_reservorio,-subtipo_reservorio,-tipo_terminacion,-co2_inyectado_m3,-presion_maxima_psi,-potencia_equipos_fractura_hp,-fecha_data,-anio_if,-mes_if,-anio_ff,-mes_ff,-anio_carga,-mes_carga,-mes,-anio,)
+
+```
+
+El dataframe "df_frac_prep" resultante contiene `r nrow(df_frac_prep)` observaciones  y `r ncol(df_frac_prep)` variables (columnas).
+
+### df_prod_prep
+
+Quitemos las variables irrelevantes para el análisis posterior
+
+```{r}
+df_prod_prep <- df_prod %>%
+  select(-anio,-mes,-iny_agua,-iny_gas,-iny_co2,-iny_otro,-areapermisoconcesion,-cuenca,-vida_util,-tipoextraccion,-tipoestado,-observaciones,-fechaingreso,-rectificado,-habilitado,-idusuario,-formprod,-profundidad,-formacion,-idareapermisoconcesion,-idareayacimiento,-provincia,-coordenadax,-coordenaday,-tipo_de_recurso,-proyecto,-clasificacion,-subclasificacion,-sub_tipo_recurso,fecha_prod=fecha_data)
+
+```
+El dataframe "df_prod_prep" resultante contiene `r nrow(df_prod_prep)` observaciones  y `r ncol(df_prod_prep)` variables (columnas).
+
+# Proceso de datos sucios a datos limpios
+
+### df_frac_clean
+
+Crearemos un dataframe con el nombre "df_frac_clean" y limpiaremos los pozos que no tienen registro de longitud de rama horizontal.
+
+```{r message=FALSE, warning=FALSE}
+df_frac_clean <- df_frac_prep %>%
+  filter(longitud_rama_horizontal_m>0)
+
+```
+De la limpieza nos resulta un dataframe con `r nrow(df_frac_clean)` observaciones y `r ncol(df_frac_clean)` variables (columnas), es decir que con nuestro proceso de limpieza hemos descartado un **`r scales::percent(1-prod(dim(df_frac_clean))/prod(dim(df_frac_prep)))`** de los pozos.
+
+### df_prod_clean
+
+Crearemos un dataframe con el nombre "df_prod_clean". Filtraremos los pozos horizontales señalados con una "h" que se encuentra luego del guion en la variable "sigla" y el análisis lo haremos sobre los pozos pertrolíferos que tienen menor error de medición en la boca de pozo. Entonces filtraremos las observaciones en la variable "tipopozo" que tienen la cadena de texto "Pet" y tambièn las variables "prod_gas" y "prod_agua". Eliminaremos las observaciones mensuales que no tuvieron registro de producción de petróleo y luego agruparemos por pozo para quedarnos solo con los que tienen 3 o mas observaciones.
+
+```{r message=FALSE, warning=FALSE}
+df_prod_clean <- df_prod_prep %>%
+  separate(sigla,into=c("first_sigla","last_sigla"),sep="-",remove = FALSE)%>%
+  filter(grepl("h",last_sigla))%>%
+  filter(grepl("Pet",tipopozo))%>%
+  filter(prod_pet>0)%>%
+  group_by(idpozo)%>%
+  filter(n()>=3)%>%
+ungroup()%>%
+  select(-first_sigla,-last_sigla,-prod_gas,-prod_agua)
+
+# a veces la el nombre de la columna "idempresa" tiene error desde la descarga entonces para resolverlo vamos a renombrar la columna 1 como "idempresa"
+
+colnames(df_prod_clean)[1] <- c("idempresa")
+
+# en columna "empresa" hay diferentes nombres que se refieren a la misma empresa. Vamos a corregirlo
+
+df_prod_clean['empresa'][df_prod_clean['empresa'] == 'PAN AMERICAN ENERGY (SUCURSAL ARGENTINA) LLC'] <- 'PAN AMERICAN ENERGY SL'
+df_prod_clean['empresa'][df_prod_clean['empresa'] == 'VISTA OIL & GAS ARGENTINA SAU'] <- 'VISTA ENERGY ARGENTINA SAU'
+df_prod_clean['empresa'][df_prod_clean['empresa'] == 'Vista Oil & Gas Argentina SA'] <- 'VISTA ENERGY ARGENTINA SAU'
+df_prod_clean['empresa'][df_prod_clean['empresa'] == 'WINTERSHALL DEA ARGENTINA S.A'] <- 'WINTERSHALL ENERGIA S.A.'
+
+```
+De la limpieza nos resulta un dataframe con `r nrow(df_prod_clean)` observaciones y `r ncol(df_prod_clean)` variables (columnas), es decir que con nuestro proceso de limpieza hemos descartado un **`r scales::percent(1-prod(dim(df_prod_clean))/prod(dim(df_prod_prep)))`** de las observaciones.
+
+# Transformando y analizando datos
+
+### df_frac_tran
+
+Este dataframe sera resultado calcular nueva variables "espaciamiento" que será útil en posterio análisis, cambio de formato fecha "chr" a "date" y rendondeo de variables numéricas a 0 decimal.
+ 
+```{r message=FALSE, warning=FALSE}
+
+df_frac_tran <- df_frac_clean %>%
+  mutate(espaciamiento=longitud_rama_horizontal_m/cantidad_fracturas,.after = cantidad_fracturas,across(c(longitud_rama_horizontal_m,cantidad_fracturas,arena_bombeada_nacional_tn,arena_bombeada_importada_tn,agua_inyectada_m3,espaciamiento),round,0))
+df_frac_tran$fecha_fin_fractura <- ymd(df_frac_tran$fecha_fin_fractura)
+df_frac_tran$fecha_inicio_fractura <- ymd(df_frac_tran$fecha_inicio_fractura)
+df_frac_tran$idpozo <- as.character(df_frac_tran$idpozo)
+
+```
+
+
+### df_prod_tran
+
+Para encontrar patrones de correlación entre variables nos independizarnos de la variable tiempo. Entonces crearemos un dataframe con producciónes acumuladas a tiempo efectivo acumulado para luego obtener en cada pozo su "prod_pet_acum" a un "tef_acum" de 90, 180, 365 y 720 días. Resultará de esto, un dataframe con una observación por pozo.  Tambien cambiaremos el formato numérico a 0 decimal y las fechas de "chr" a "date".
+
+```{r message=FALSE, warning=FALSE}
+
+df_prod_tran <- df_prod_clean%>%
+  group_by(idpozo)%>%
+  arrange(fecha_prod)%>%
+  mutate(prod_pet_acum=cumsum(prod_pet),tef_acum=cumsum(tef),.after = tef, across(c(prod_pet,tef,prod_pet_acum,tef_acum),round,0))%>%
+  
+# vamos a crear dos nuevas columnas "last_idempresa" y "last_empresa" porque hay pozos que en su historia fueron varias empresas que participaron de la producción. Eligamos la última empresa. 
+  
+  mutate(last_empresa=last(empresa),last_idempresa=last(idempresa))%>%
+  select(idpozo,sigla,last_idempresa,last_empresa,areayacimiento,everything(),-idempresa,-empresa)%>%
+  ungroup()%>%
+  arrange(idpozo)
+
+# cambiando formato
+df_prod_tran$fecha_prod <- ymd(df_prod_tran$fecha_prod)
+df_prod_tran$idpozo <- as.character(df_prod_tran$idpozo)
+
+# Interpolando con función "approx". La función "approx" da como salida dos vectores "x" e "y" entonces colocando "$y", nos entregua solo el vector "y". Como necesitamos "yout" a 90, 180, 360 y 720, definimoos estos valores "xout" y este único valor resultante luego con la función "mutate" lo replica para cada observación del grupo.
+
+df_prod_tran <- group_by(df_prod_tran,idpozo)%>%
+  mutate(prod_pet_acum_90 = approx(x = tef_acum, y = prod_pet_acum, xout = 90)$y,prod_pet_acum_180 = approx(x = tef_acum, y = prod_pet_acum, xout = 180)$y,prod_pet_acum_360 = approx(x = tef_acum, y = prod_pet_acum, xout = 360)$y,prod_pet_acum_720 = approx(x = tef_acum, y = prod_pet_acum, xout = 720)$y)%>%
+  mutate(across(where(is.numeric), round, 0))%>%
+  ungroup()
+
+# agrupando tendremos un nuevo dataframe de una observación por pozo
+
+df_prod_tran <- group_by(df_prod_tran,idpozo,sigla,last_idempresa,last_empresa,areayacimiento,prod_pet_acum_90,prod_pet_acum_180,prod_pet_acum_360,prod_pet_acum_720)%>%
+  summarise()
+
+```
+
+
+### df_frac_prod_tran 
+
+Para comparar correctamente debemos suponer que todos los pozos fueron realizados a la misma longitud horizontal. Entonces estandarizremos todas las producciones a 2500 mt de longitd horizontal. Uniremos primero los dataframes "df_frac_tran" y "df_prod_tran" para luego dividir las producciones por su longitud horizontal multiplicada por 2500. 
+
+
+```{r message=FALSE, warning=FALSE}
+df_frac_prod_tran <- inner_join(df_frac_tran,df_prod_tran,by="idpozo")%>%
+  select(idpozo,sigla,last_idempresa,last_empresa,areayacimiento,everything())%>%
+  arrange(idpozo)%>%
+  mutate(longitud_rama_horizontal_m_N=longitud_rama_horizontal_m/longitud_rama_horizontal_m*2500,cantidad_fracturas_N=cantidad_fracturas/longitud_rama_horizontal_m*2500,arena_bombeada_nacional_tn_N=arena_bombeada_nacional_tn/longitud_rama_horizontal_m*2500,arena_bombeada_importada_tn_N=arena_bombeada_importada_tn/longitud_rama_horizontal_m*2500,agua_inyectada_m3_N=agua_inyectada_m3/longitud_rama_horizontal_m*2500,prod_pet_acum_90_N=prod_pet_acum_90/longitud_rama_horizontal_m*2500,prod_pet_acum_180_N=prod_pet_acum_180/longitud_rama_horizontal_m*2500,prod_pet_acum_360_N=prod_pet_acum_360/longitud_rama_horizontal_m*2500,prod_pet_acum_720_N=prod_pet_acum_720/longitud_rama_horizontal_m*2500,.keep = "unused")%>%
+  mutate(across(where(is.numeric), round, 0))
+
+# Mostremos la tabla lograda:
+
+rmarkdown::paged_table(df_frac_prod_tran)
+
+```
+
+# Compartiendo concluciones
+
+## Forecast de producciones acumuladas
+
+Existe correlaciones que nos puedan dar información? Hagamos un vistazo con la matriz de correlaciones aplicada al dataframe "df_frac_prod_tran":
+
+```{r message=FALSE, warning=FALSE}
+round(cor(select(df_frac_prod_tran,longitud_rama_horizontal_m_N,cantidad_fracturas_N,espaciamiento,arena_bombeada_nacional_tn_N,arena_bombeada_importada_tn_N,agua_inyectada_m3_N,prod_pet_acum_90_N,prod_pet_acum_180_N,prod_pet_acum_360_N,prod_pet_acum_720_N),use='pairwise.complete.obs'),2)
+
+```
+
+**Podemos observar la elevada correlatividad entre "prod_pet_acum_90_N", "prod_pet_acum_180_N", "prod_pet_acum_360_N" y "prod_pet_acum_720_N".**
+
+Esto nos indica que podemos estimar la productividad futura con un valor de productividad presente.
+
+Graficamos y observamos el coeficiente de correlación de las diferentes empresas.
+
+```{r message=FALSE, warning=FALSE,out.width='100%'}
+f_1 <- df_frac_prod_tran %>%
+  group_by(last_empresa)%>%
+  filter(n()>2)%>%
+  ggplot(mapping=aes(x=prod_pet_acum_90_N, y=prod_pet_acum_180_N))+
+  geom_point(shape=21, size=1)+
+  geom_smooth(method = "lm",formula = y ~ poly(x, 1),se=TRUE,level=0.95,color='red')+
+  ggpubr::stat_cor()+
+  facet_wrap(~last_empresa)
+
+f_1
+
+```
+
+
+"f_1" muestra alta correlatividad para todas las empresas. Vamos a visualizar en mas detalle las 4 empresas que mas pozos tienen.
+
+### Estimación productividad 180 días
+
+```{r message=FALSE, warning=FALSE,out.width='100%'}
+f_2 <- df_frac_prod_tran %>%
+  group_by(last_empresa)%>%
+  filter(n()>50)%>%
+  ungroup()%>%
+  ggplot(mapping=aes(x=prod_pet_acum_90_N, y= prod_pet_acum_180_N))+
+  geom_point()+
+  geom_smooth(method=lm,se=FALSE)+
+  facet_wrap(~last_empresa)+
+  theme(legend.position = 'none')+
+    ggpubr::stat_cor(aes(label = paste(..rr.label..,..r.label.., ..p.label.., sep = "~`,`~")),label.x = 3,label.y = 70000)
+  
+
+f_2
+
+```
+
+### Estimación productividad 360 días
+
+```{r message=FALSE, warning=FALSE,out.width='100%'}
+f_3 <- df_frac_prod_tran %>%
+  group_by(last_empresa)%>%
+  filter(n()>50)%>%
+  ungroup()%>%
+  ggplot(mapping=aes(x=prod_pet_acum_180_N, y= prod_pet_acum_360_N))+
+  geom_point()+
+  geom_smooth(method=lm,se=FALSE)+
+  facet_wrap(~last_empresa)+
+  theme(legend.position = 'none')+
+    ggpubr::stat_cor(aes(label = paste(..rr.label..,..r.label.., ..p.label.., sep = "~`,`~")),label.x = 3,label.y = 85000)
+  
+
+f_3
+```
+
+
+### Estimación productividad 720 días
+
+
+```{r message=FALSE, warning=FALSE,out.width='100%'}
+f_4 <- df_frac_prod_tran %>%
+  group_by(last_empresa)%>%
+  filter(n()>50)%>%
+  ungroup()%>%
+  ggplot(mapping=aes(x=prod_pet_acum_360_N, y= prod_pet_acum_720_N))+
+  geom_point()+
+  geom_smooth(method=lm,se=FALSE)+
+  facet_wrap(~last_empresa)+
+  theme(legend.position = 'none')+
+    ggpubr::stat_cor(aes(label = paste(..rr.label..,..r.label.., ..p.label.., sep = "~`,`~")),label.x = 3,label.y = 120000)
+  
+
+f_4
+
+```
+
+**<span style="color:blue">Concluimos que hay elevada correlatividad de los acumulados reales con su acumulado superior. Los coeficientes de determinación son altos también, entonces por medio de la ecuación de la recta resultante de la regresión lineal. podremos estimar cualquier acumulado con el acumulado real inferior</span>**
+
+
+
+## Maxima productividad
+
+Existe información que relacione la productividad con los rangos de espaciamiento? Observemos que sucede con las medias de "prod_pet_acum_90_N", "prod_pet_180_N", "prod_pet_360_N" y "prod_pet_720_N" para cada rango de espaciamiento:
+
+```{r}
+ df_frac_prod_tran <-
+  mutate(df_frac_prod_tran, rango_espaciamiento=cut_width(espaciamiento, width=10, boundary=0),.after = espaciamiento)%>%
+  mutate(across(where(is.numeric), round, 0))
+
+tab_1 <- df_frac_prod_tran%>%
+  group_by(rango_espaciamiento)%>%
+  summarise(prod_pet_mean_90_N=median(prod_pet_acum_90_N[which(!is.na(prod_pet_acum_90_N))]),prod_pet_mean_180_N=median(prod_pet_acum_180_N[which(!is.na(prod_pet_acum_180_N))]),prod_pet_mean_360_N=median(prod_pet_acum_360_N[which(!is.na(prod_pet_acum_360_N))]),prod_pet_mean_720_N=median(prod_pet_acum_720_N[which(!is.na(prod_pet_acum_720_N))]))
+
+rmarkdown::paged_table(tab_1)
+
+```
+
+**Podemos observar que el rango de 40 a 50 metros tiene los mejores promedios de producción de petróleo acumulados en 90, 180, 360 y 720 días.**
+
+Grafiquemos en boxplot lo resultados que encontramos en la tab_1
+
+
+```{r message=FALSE, warning=FALSE,out.width='100%'}
+f_5 <- df_frac_prod_tran %>%
+  pivot_longer(cols=c('prod_pet_acum_90_N','prod_pet_acum_180_N','prod_pet_acum_360_N','prod_pet_acum_720_N'),names_to='prod_pet_acum_N',
+               values_to='m3_N')%>%
+  ggplot(mapping=aes(x=rango_espaciamiento, y= m3_N,fill=factor(prod_pet_acum_N,levels=c('prod_pet_acum_90_N','prod_pet_acum_180_N','prod_pet_acum_360_N','prod_pet_acum_720_N'))))+
+  theme(axis.text.x = element_text(size=7,angle=90, hjust=1,vjust=0))+
+  geom_boxplot()+
+  theme(legend.position="bottom",legend.title=element_blank())+
+  ylim(NA, 100000)
+f_5
+```
+
+**<span style="color:blue">De acuerdo a la fig_5 podemos recomendar que la productividad esta realacionada con el espaciamiento entre fracturas, siendo el rango de 40 mt a 50 mt el mas adecuado para futuros pozos</span>**
