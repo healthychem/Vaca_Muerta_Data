@@ -262,7 +262,7 @@ f_3 <- df_frac_prod_tran %>%
   geom_smooth(method=lm,se=FALSE)+
   facet_wrap(~last_empresa)+
   theme(legend.position = 'none')+
-    ggpubr::stat_cor(aes(label = paste(..rr.label..,..r.label.., ..p.label.., sep = "~`,`~")),label.x = 3,label.y = 85000)
+    ggpubr::stat_cor(aes(label = paste(..rr.label..,..r.label.., ..p.label.., sep = "~`,`~")),label.x = 3,label.y = 90000)
   
 
 f_3
@@ -282,7 +282,7 @@ f_4 <- df_frac_prod_tran %>%
   geom_smooth(method=lm,se=FALSE)+
   facet_wrap(~last_empresa)+
   theme(legend.position = 'none')+
-    ggpubr::stat_cor(aes(label = paste(..rr.label..,..r.label.., ..p.label.., sep = "~`,`~")),label.x = 3,label.y = 120000)
+    ggpubr::stat_cor(aes(label = paste(..rr.label..,..r.label.., ..p.label.., sep = "~`,`~")),label.x = 3,label.y = 150000)
   
 
 f_4
