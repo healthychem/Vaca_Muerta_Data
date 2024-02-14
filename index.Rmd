@@ -1,5 +1,5 @@
 ---
-title: "Estadística en Vaca Muerta"
+title: "Estimación de la productividad de petróleo cuando el pasado se repite"
 author: "Pablo Vidal"
 date: "`r Sys.Date()`"
 output: 
@@ -10,6 +10,32 @@ output:
     theme: "default"
     
 ---
+
+# Introducción
+
+Una serie temporal (time series) es una sucesión de datos ordenados cronológicamente y espaciados a intervalos iguales o desiguales. El proceso de forecasting consiste en predecir el valor futuro de una serie temporal, bien modelando la serie únicamente en función de su comportamiento pasado. Pero es posible realizar este forecast independiente de la variable tiempo?
+
+En términos generales, al crear un modelo de forecasting se utilizan datos históricos con el objetivo de obtener una representación matemática capaz de predecir futuros valores. Esta idea se fundamenta sobre una asunción muy importante, el comportamiento futuro de un fenómeno se puede explicar a partir de su comportamiento pasado. Vease la siguiente definición:
+
+*Forecast = patrones + varianzanoexplicada*
+
+El primer término de la ecuación hace referencia a todo aquello que tiene un carácter repetitivo a lo largo del tiempo (tendencia, estacionalidad, factores cíclicos...). El segundo término, representa todo aquello que influye en la variable respuesta pero que no está recogido (explicado) por el pasado.
+
+Cuanto mayor importancia tenga el primer término respecto al segundo, mayor será la probabilidad de exito al tratar de crear modelos de forecasting de tipo autoregresivo.
+
+Realizar un buen estudio del fenómeno modelado y saber reconocer en qué medida su comportamiento puede explicarse gracias a su pasado, puede ahorrar muchos esfuerzos inecesarios.
+
+En este documento se intenta predecir la producción acumulada de petróleo utlizando métodos de regresión lineal. Se hace uso de "tidyverse", una sencilla librería de R que permite, entre otras cosas, múltiples gráficos para mostrar con claridad los resultados.
+
+Pero que sucede cuando intentamos encontrar un patrón que no lo explica una regresión lineal? También se muestra con la ayuda gráfica de "boxplot" que variable influye en la productividad máxima de petróleo.
+
+# Caso de uso
+
+Vaca Muerta es una formación rocosa de la Patagonia Argentina que guarda es su estructura gas y petróleo de extracción no convencional. Los pozos para la explotación se crean mediante una fractura horizontal en profundidad con múltiples punzamientos espaciados para generar un efecto gran permeabilidad de la roca. Similar al efecto de la bombilla dentro de la yerba mate.
+
+La página web <http://datos.energia.gob.ar/> de la Secretaría de Energía de la Nación, guarda una gran cantidad de registros desde el 2006 sobre las fracturas y producción de petróleo y gas.
+
+El creciente interes de inversores en la cuenca de Vaca Muerta soportado por el gran potencial energético para consumo interno y exportación, lo convierte en un fenómeno interesante de modelar. 
 
 # Tarea Empresarial
 

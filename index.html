@@ -13,7 +13,7 @@
 
 <meta name="date" content="2024-02-14" />
 
-<title>Estadística en Vaca Muerta</title>
+<title>Estimación de la productividad de petróleo cuando el pasado se repite</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -2750,13 +2750,64 @@ border-radius: 0px;
 
 
 
-<h1 class="title toc-ignore">Estadística en Vaca Muerta</h1>
+<h1 class="title toc-ignore">Estimación de la productividad de petróleo
+cuando el pasado se repite</h1>
 <h4 class="author">Pablo Vidal</h4>
 <h4 class="date">2024-02-14</h4>
 
 </div>
 
 
+<div id="introducción" class="section level1">
+<h1>Introducción</h1>
+<p>Una serie temporal (time series) es una sucesión de datos ordenados
+cronológicamente y espaciados a intervalos iguales o desiguales. El
+proceso de forecasting consiste en predecir el valor futuro de una serie
+temporal, bien modelando la serie únicamente en función de su
+comportamiento pasado. Pero es posible realizar este forecast
+independiente de la variable tiempo?</p>
+<p>En términos generales, al crear un modelo de forecasting se utilizan
+datos históricos con el objetivo de obtener una representación
+matemática capaz de predecir futuros valores. Esta idea se fundamenta
+sobre una asunción muy importante, el comportamiento futuro de un
+fenómeno se puede explicar a partir de su comportamiento pasado. Vease
+la siguiente definición:</p>
+<p><em>Forecast = patrones + varianzanoexplicada</em></p>
+<p>El primer término de la ecuación hace referencia a todo aquello que
+tiene un carácter repetitivo a lo largo del tiempo (tendencia,
+estacionalidad, factores cíclicos…). El segundo término, representa todo
+aquello que influye en la variable respuesta pero que no está recogido
+(explicado) por el pasado.</p>
+<p>Cuanto mayor importancia tenga el primer término respecto al segundo,
+mayor será la probabilidad de exito al tratar de crear modelos de
+forecasting de tipo autoregresivo.</p>
+<p>Realizar un buen estudio del fenómeno modelado y saber reconocer en
+qué medida su comportamiento puede explicarse gracias a su pasado, puede
+ahorrar muchos esfuerzos inecesarios.</p>
+<p>En este documento se intenta predecir la producción acumulada de
+petróleo utlizando métodos de regresión lineal. Se hace uso de
+“tidyverse”, una sencilla librería de R que permite, entre otras cosas,
+múltiples gráficos para mostrar con claridad los resultados.</p>
+<p>Pero que sucede cuando intentamos encontrar un patrón que no lo
+explica una regresión lineal? También se muestra con la ayuda gráfica de
+“boxplot” que variable influye en la productividad máxima de
+petróleo.</p>
+</div>
+<div id="caso-de-uso" class="section level1">
+<h1>Caso de uso</h1>
+<p>Vaca Muerta es una formación rocosa de la Patagonia Argentina que
+guarda es su estructura gas y petróleo de extracción no convencional.
+Los pozos para la explotación se crean mediante una fractura horizontal
+en profundidad con múltiples punzamientos espaciados para generar un
+efecto gran permeabilidad de la roca. Similar al efecto de la bombilla
+dentro de la yerba mate.</p>
+<p>La página web <a href="http://datos.energia.gob.ar/" class="uri">http://datos.energia.gob.ar/</a> de la Secretaría de Energía
+de la Nación, guarda una gran cantidad de registros desde el 2006 sobre
+las fracturas y producción de petróleo y gas.</p>
+<p>El creciente interes de inversores en la cuenca de Vaca Muerta
+soportado por el gran potencial energético para consumo interno y
+exportación, lo convierte en un fenómeno interesante de modelar.</p>
+</div>
 <div id="tarea-empresarial" class="section level1">
 <h1>Tarea Empresarial</h1>
 <p>Hay maneras de estimar producciones de petróleo a tiempos efectivos
