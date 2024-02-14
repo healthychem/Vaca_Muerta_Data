@@ -13,7 +13,7 @@ output:
 
 # Tarea Empresarial
 
-Descubrir que variables correlacionan con la productividad en pozos petroleros horizontales basados en datos históricos y estimar la productividad en un intervalo de tiempo establecido.
+Hay maneras de estimar producciones de petróleo a tiempos efectivos establecidos para conocer anticipadamente el comportamiento del pozo? Existen variables que puedan influir en la performance del pozo?
 
 # Preparando datos para la exploración
 
